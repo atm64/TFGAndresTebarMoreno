@@ -195,6 +195,7 @@ if __name__ == '__main__':
     
     img = cv2.imread(args.input)
     confidence_threshold = args.confidence_threshold
+    inpaint_option = args.inpaint
     ##confidence_threshold=0.75
     ##human_instances, img_to_show, rcnnShapes = calculate_Rcnn_mask(img, confidence_threshold)
     img_to_show, rcnnShapes = calculate_Rcnn_mask(img, confidence_threshold)
@@ -207,9 +208,10 @@ if __name__ == '__main__':
     
     ##union_masks = union_masks_instances(dense_ordered, rcnnShapes)
     union_masks = union_masks_instances(denseshapes, rcnnShapes)
-    all_masks = mask_all_instances(union_masks, img)
+    if(len(union_masks) == 1):
+        inpaint_option = 1
 
-    cv2.imshow('All masks', all_masks)
+    all_masks = mask_all_instances(union_masks, img)
     
     ##cv2.imshow('Mask-R_cnn', resize_Rcnn_Img_Show(output, rcnnShapes))
     ##cv2.imshow('Mask-R_cnn', img_to_show)
@@ -217,7 +219,7 @@ if __name__ == '__main__':
 
     ## Encapsulamos parametros: images, siluetas
     ##masks = human_instances.pred_masks.cpu().numpy()
-    params = (img, union_masks, all_masks, args.inpaint) ##, masks)##, coordinates)
+    params = (img, union_masks, all_masks, inpaint_option) ##, masks)##, coordinates)
 
     ## Llamamos al evento al dar click
     ##cv2.setMouseCallback('Mask-R_cnn', mousePoints, params)
