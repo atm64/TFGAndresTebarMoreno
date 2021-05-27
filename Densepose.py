@@ -59,10 +59,11 @@ def whitenShape(imgShape): ##Blanquea la silueta
 def apply_mask_to_img(mask, img): ##Aplica la mascara con un factor de transparencia del 0.5 en las dos imagenes
     return cv2.addWeighted(img, 0.5, mask, 0.5, 0.0)
 
-def color_shape_and_rectangle(imgshapes, shape, nShape, coord):
+##def color_shape_and_rectangle(imgshapes, shape, nShape, coord):
+def color_shape_and_rectangle(imgshapes, shape, coord):
     color = list(np.random.random(size=3) * 256) ##Genera un color aleatorio
     
-    printNumber(imgshapes, coord[0], coord[1], coord[2], coord[3], nShape, color) ##Imprime un numero en el centro de cada figura
+    ##printNumber(imgshapes, coord[0], coord[1], coord[2], coord[3], nShape, color) ##Imprime un numero en el centro de cada figura
     cv2.rectangle(imgshapes, (coord[0],coord[1]), (coord[2],coord[3]), color, 2) ##Dibuja un rectángulo alrededor de cada figura
 
     shape[np.where((shape==[255, 255, 255]).all(axis=2))] = color ## Colorea la silueta con el color generado
@@ -70,7 +71,7 @@ def color_shape_and_rectangle(imgshapes, shape, nShape, coord):
     
     return imgshapes, shape
 
-def printNumber(img, x, y, w, h, num, color):
+""" def printNumber(img, x, y, w, h, num, color):
     
     mediox = (x+w)/2
     medioy = (y+h)/2
@@ -81,11 +82,11 @@ def printNumber(img, x, y, w, h, num, color):
     fontColor = color
     lineType = 2
 
-    cv2.putText(img, str(int(num)), bottomLeftCornerOfText, font, fontScale, fontColor, lineType)
+    cv2.putText(img, str(int(num)), bottomLeftCornerOfText, font, fontScale, fontColor, lineType) """
 
 
 
-def calculate_mask_shapes_and_coordinates(img, confidence_threshold):
+def calculate_mask_and_shapes(img, confidence_threshold):
 
 
     cfg = setup_config(cfg_file, model_file, confidence_threshold)
@@ -114,15 +115,11 @@ def calculate_mask_shapes_and_coordinates(img, confidence_threshold):
         results = [(scores[s], uv_results[s], bboxes[s]) for s in range(len(scores))]
         results = sorted(results, key=lambda r: r[0])
 
-        coordinates = []
-        colorShapes = []
-        shapesAndcoords = []
+        shapes = []
         colorMask = np.zeros_like(img)
-        nShape = 0
         for result in results: ##Posibles resultados
             score, res, bbox = result
-            ##if score > 0.5: ##Filtra posibles resultados
-            if score > 0.75: ##Filtra posibles resultados
+            if score > confidence_threshold: ##Filtra posibles resultados
 
                 iuv_img_single = np.zeros_like(img) ##Inicializa imagen resultado una figura
                 qres = quantize_densepose_chart_result(res)
@@ -132,12 +129,13 @@ def calculate_mask_shapes_and_coordinates(img, confidence_threshold):
                     iuv_img_single[y:y+h,x:x+w,c] = iuv_arr[c, :, :]
                 
                 
-                colorMask, colorShape = color_shape_and_rectangle(colorMask, whitenShape(iuv_img_single), nShape, [x,y,x+w,y+h])
-                colorShapes.append(colorShape)
-                coordinates.append([x,y,x+w,y+h])
-                nShape += 1
+                ##colorMask, colorShape = color_shape_and_rectangle(colorMask, whitenShape(iuv_img_single), nShape, [x,y,x+w,y+h])
+                colorMask, colorShape = color_shape_and_rectangle(colorMask, whitenShape(iuv_img_single), [x,y,x+w,y+h])
+                ##colorShapes.append(colorShape)
+                shapes.append(whitenShape(iuv_img_single))
 
-        return colorMask, colorShapes, coordinates
+        
+        return apply_mask_to_img(colorMask, img), shapes##, coordinates
 
 def white_pixels(shape):
     ##return cv2.countNonZero(cv2.cvtColor((np.uint8(shape > 0) * 255),cv2.COLOR_BGR2GRAY))
@@ -155,28 +153,10 @@ def densePose(dataset_dir, confidence_threshold):
     ##dataset_dir = cv2.imread("images/mayor.jpg")
     
     ## Obtenemos la mascara, las siluetas y sus coordenadas
-    mask, shapes, coordinates = calculate_mask_shapes_and_coordinates(dataset_dir, confidence_threshold)
+    ##mask, shapes, coordinates = calculate_mask_shapes_and_coordinates(dataset_dir, confidence_threshold)
+    mask, shapes = calculate_mask_and_shapes(dataset_dir, confidence_threshold)
 
     ## Aplicamos la mascara a la imagen 
     ##imgMask = apply_mask_to_img(mask, dataset_dir)
 
-    ## Mostramos en pantalla
-    ##cv2.imshow('img', dataset_dir)
-    ##cv2.imshow('colorMask', mask)
-    ##cv2.imshow('img+mask', imgMask)
-    ##cv2.imshow('DesneposeMask', imgMask)
-
-    ## Encapsulamos parametros: images, siluetas y coordenadas
-    ##params = (dataset_dir, shapes, coordinates)
-
-    ## Llamamos al evento al dar click
-    ##cv2.setMouseCallback('img+mask', mousePoints, params)
-    ##cv2.setMouseCallback('DesneposeMask', mousePoints, params)
-
-    ## Cerramos ventanas abiertas
-    ##k = cv2.waitKey(0)
-    ##if k == ord('s'):
-        ##cv2.destroyAllWindows()
-
-    ##return shapes
-    return order_denseposes(shapes)
+    return mask, order_denseposes(shapes)

@@ -84,13 +84,19 @@ def get_parser():
         help="Minimum score for instance predictions to be shown",
     )
     parser.add_argument(
-        "--inpaint",
+        "--detection-mask",
         type=int,
-        default=3,
-        help="Tipo de inpainting a realizar",
+        default=0,
+        help="Mascara para seleccionar instancia (0: Mask R-cnn, 1: Densepose)",
     )
     parser.add_argument(
-        "--iterate",
+        "--inpaint",
+        type=int,
+        default=0,
+        help="Tipo de inpainting a realizar (0: Completa, 1: Simple, 2: Sin personas)",
+    )
+    parser.add_argument(
+        "--recursive",
         type=int,
         default=0,
         help="Cuando se realiza el borrado se trabaja sobre la imagen original o sobre el resultado",
@@ -111,7 +117,7 @@ def mousePoints(event, x, y, flags, params):
         shapes = params[1]
         all_masks = params[2]
         inpaint = params[3]
-        shape = False
+        recursive = params[4]
 
         for shapeI in shapes:
             shapeImg = cv2.cvtColor(shapeI, cv2.COLOR_BGR2RGB) ##Imagen de referencia
@@ -119,38 +125,22 @@ def mousePoints(event, x, y, flags, params):
             
             b, g, r = shapeImg[y,x]
             if b == 255 and g == 255 and r == 255:
-                shape = True
 
                 if inpaint==1:
-                    shape_inpainted = image_inpainting_simple(img, shapeImg)
+                    shape_inpainted = image_inpainting_simple(img, shapeImg, recursive)
                 elif inpaint ==2:    
-                    shape_inpainted = image_inpainting_no_people(img, shapeImg, all_masks)
+                    shape_inpainted = image_inpainting_no_people(img, shapeImg, all_masks, recursive)
                 else:
-                    shape_inpainted = image_inpainting_complete(img, shapeImg, all_masks)
+                    shape_inpainted = image_inpainting_complete(img, shapeImg, all_masks, recursive)
                 
                 cv2.imshow('Image Inpainting', shape_inpainted)
-        
-        ##if not shape:
-            ##print(str(-1))
-
-""" def eraseShape(img, shape): ##Elimina silueta
-    return cv2.add(img, whitenShape(shape)) """
-
-
-def whitenShape(imgShape): ##Blanquea la silueta
-    return np.uint8(imgShape > 0) * 255
-    ##return cv2.cvtColor(np.uint8(imgShape > 0) * 255, cv2.COLOR_BGR2GRAY)
-
 
 def union_masks_instances(denseshapes, rcnnShapes):##Une siluetas teniendo en cuenta el minimo numero de pixeles en blanco
 
 ##HAY QUE ARREGLAR EL PROBLEMA DE evitar que las sliuetas pequeñas se junten con las grandes, PARA ELLO ELIMINAR DEL ARRAY
     union_masks = []
     for i in range(0, len(denseshapes)):
-        im1 = cv2.cvtColor(whitenShape(denseshapes[i]), cv2.COLOR_BGR2GRAY)
-        ##im1 = cv2.cvtColor(whitenShape(denseshapes[i]), cv2.COLOR_BGR2RGB)
-        ##im2 = rcnnShapes[i]
-        ##im2 = cv2.cvtColor(rcnnShapes[i], cv2.COLOR_BGR2RGB)
+        im1 = cv2.cvtColor(denseshapes[i], cv2.COLOR_BGR2GRAY)
         im2 = cv2.cvtColor(rcnnShapes[i], cv2.COLOR_BGR2GRAY)
         best_match = i
         min_union = cv2.countNonZero(np.maximum(im1, im2))
@@ -196,10 +186,11 @@ if __name__ == '__main__':
     img = cv2.imread(args.input)
     confidence_threshold = args.confidence_threshold
     inpaint_option = args.inpaint
-    ##confidence_threshold=0.75
+    recursive = (args.recursive==1)
+    
     ##human_instances, img_to_show, rcnnShapes = calculate_Rcnn_mask(img, confidence_threshold)
-    img_to_show, rcnnShapes = calculate_Rcnn_mask(img, confidence_threshold)
-    denseshapes = densePose(img, confidence_threshold)
+    img_mask_rcnn, rcnnShapes = calculate_Rcnn_mask(img, confidence_threshold)
+    img_mask_densepose, denseshapes = densePose(img, confidence_threshold)
     ##dense_ordered = order_denseposes(denseshapes)
 
     
@@ -215,14 +206,17 @@ if __name__ == '__main__':
     
     ##cv2.imshow('Mask-R_cnn', resize_Rcnn_Img_Show(output, rcnnShapes))
     ##cv2.imshow('Mask-R_cnn', img_to_show)
-    cv2.imshow('Shapes', img_to_show)
+    if(args.detection_mask == 1):
+        cv2.imshow('Shapes', img_mask_densepose)
+    else:
+        cv2.imshow('Shapes', img_mask_rcnn)
+    
 
-    ## Encapsulamos parametros: images, siluetas
+    ## Encapsulamos parametros: images, siluetas individuales, siluetas global, opción inpaint 
     ##masks = human_instances.pred_masks.cpu().numpy()
-    params = (img, union_masks, all_masks, inpaint_option) ##, masks)##, coordinates)
+    params = (img, union_masks, all_masks, inpaint_option, recursive) ##, masks)##, coordinates)
 
     ## Llamamos al evento al dar click
-    ##cv2.setMouseCallback('Mask-R_cnn', mousePoints, params)
     cv2.setMouseCallback('Shapes', mousePoints, params)
 
     k = cv2.waitKey(0)

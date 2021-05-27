@@ -191,7 +191,7 @@ def image_inpainting(img, mask):
     
     return inpainted
 
-def image_inpainting_simple(img, shapeImg):
+def image_inpainting_simple(img, shapeImg, recursive):
     
     ##Debemos intercambiar el color respecto a la mascara para poder
     ## trabajar con el inpainting
@@ -200,6 +200,9 @@ def image_inpainting_simple(img, shapeImg):
     imgMask[np.where((shapeImg!=[255, 255, 255]).all(axis=2))] = 255
     
     shape_inpainted = image_inpainting(img, imgMask)
+
+    if recursive:
+        img[:] = shape_inpainted[:]
 
     return shape_inpainted
 
@@ -212,28 +215,27 @@ def delete_people(img, all_masks):
 
     return image_no_people
 
-def image_inpainting_no_people(img, shapeImg, all_masks):
-    """ all_masks_white = np.zeros_like(img)
-    all_masks_white[np.where((all_masks==[255, 255, 255]).all(axis=2))] = 0
-    all_masks_white[np.where((all_masks!=[255, 255, 255]).all(axis=2))] = 255 """
+def image_inpainting_no_people(img, shapeImg, all_masks, recursive):
     
-    image_no_people = delete_people(img, all_masks)##image_inpainting(img, all_masks_white)
+    image_no_people = delete_people(img, all_masks)
     inpaint = img.copy()
 
     inpaint[np.where((shapeImg==[255, 255, 255]).all(axis=2))] = image_no_people[np.where((shapeImg==[255, 255, 255]).all(axis=2))]
+    
+    if recursive:
+        img[np.where((shapeImg==[255, 255, 255]).all(axis=2))] = image_no_people[np.where((shapeImg==[255, 255, 255]).all(axis=2))]
 
     return inpaint
-
-def image_inpainting_complete(img, shapeImg, all_masks):
-
-    """ all_masks_white = np.zeros_like(img)
-    all_masks_white[np.where((all_masks==[255, 255, 255]).all(axis=2))] = 0
-    all_masks_white[np.where((all_masks!=[255, 255, 255]).all(axis=2))] = 255
     
-    image_no_people = image_inpainting(img, all_masks_white) """
+
+def image_inpainting_complete(img, shapeImg, all_masks, recursive):
+
     image_no_people = delete_people(img, all_masks)
     
     shape_inpainted = image_inpainting_simple(img, shapeImg)
     shape_inpainted[np.where((shapeImg==[255, 255, 255]).all(axis=2))] = image_no_people[np.where((shapeImg==[255, 255, 255]).all(axis=2))]
+    
+    if recursive:
+        img[:] = shape_inpainted[:]
 
     return shape_inpainted
