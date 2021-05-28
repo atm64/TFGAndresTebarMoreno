@@ -6,48 +6,15 @@ import os
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
-##import pickle
-import sys
-##from typing import Any, ClassVar, Dict, List
-import torch
 import numpy as np
 import cv2
-##import multiprocessing as mp
-import tqdm
-##import check_done_videos as chk
-##from utils.filesystem import create_dir
-##import json
 
 from Mask_Rcnn import calculate_Rcnn_mask
 
 from Densepose import densePose ##, order_denseposes, calculate_mask_shapes_and_coordinates
 
-from ImageInpainting import image_inpainting_simple, image_inpainting_no_people, image_inpainting_complete, inpaint
+from ImageInpainting import image_inpainting_simple, image_inpainting_no_people, image_inpainting_complete, delete_all_people
 
-# sys.path.insert(0,'/home/pau/git/detectron2_repo/projects/DensePose')
-# sys.path.insert(0,'/home/i2rc/code/detectron2/projects/DensePose')
-##sys.path.insert(0,'/home/andres/TFG/densepose/detectron2/projects/DensePose')
-sys.path.insert(0,'./detectron2/projects/DensePose')
-
-from detectron2.config import get_cfg
-from detectron2.engine.defaults import DefaultPredictor
-
-from detectron2.utils.visualizer import Visualizer
-from detectron2.data import MetadataCatalog, DatasetCatalog
-
-from densepose import add_densepose_config
-# from densepose.data.structures import DensePoseResult
-from densepose.structures import quantize_densepose_chart_result
-#from densepose.vis.densepose import DensePoseResultsVisualizer
-from densepose.vis.densepose_results import DensePoseResultsVisualizer
-from densepose.vis.extractor import CompoundExtractor, create_extractor
-
-
-
-from detectron2.data.detection_utils import read_image
-##from detectron2.utils.logger import setup_logger
-
-from detectron2.engine import DefaultPredictor
 
 
 def get_parser():
@@ -121,17 +88,21 @@ def mousePoints(event, x, y, flags, params):
 
         for shapeI in shapes:
             shapeImg = cv2.cvtColor(shapeI, cv2.COLOR_BGR2RGB) ##Imagen de referencia
-            ##imgMask = cv2.cvtColor(shapeI, cv2.COLOR_BGR2RGB) #Imagen con la que llamar al inpainting
             
             b, g, r = shapeImg[y,x]
             if b == 255 and g == 255 and r == 255:
 
                 if inpaint==1:
-                    shape_inpainted = image_inpainting_simple(img, shapeImg, recursive)
-                elif inpaint ==2:    
-                    shape_inpainted = image_inpainting_no_people(img, shapeImg, all_masks, recursive)
+                    shape_inpainted = image_inpainting_simple(img, shapeImg)
+                elif inpaint==2:    
+                    shape_inpainted = image_inpainting_no_people(img, shapeImg, all_masks)
+                elif inpaint==3:    
+                    shape_inpainted = delete_all_people(img, all_masks)
                 else:
-                    shape_inpainted = image_inpainting_complete(img, shapeImg, all_masks, recursive)
+                    shape_inpainted = image_inpainting_complete(img, shapeImg, all_masks)
+
+                if recursive:
+                    img[:] = shape_inpainted
                 
                 cv2.imshow('Image Inpainting', shape_inpainted)
 
@@ -168,14 +139,6 @@ def mask_all_instances(union_masks, img):
     return all_masks
 
 
-""" def resize_Rcnn_Img_Show(output, rcnnShapes):
-    out = output.draw_instance_predictions(human_instances.to("cpu"))
-    width = int(rcnnShapes[0].shape[1])
-    height = int(rcnnShapes[0].shape[0])
-    dim = (width, height)
-
-    return cv2.resize(out.get_image()[:, :, ::-1], dim, interpolation = cv2.INTER_AREA) """
-
 if __name__ == '__main__':
     
     print('Start')
@@ -188,10 +151,8 @@ if __name__ == '__main__':
     inpaint_option = args.inpaint
     recursive = (args.recursive==1)
     
-    ##human_instances, img_to_show, rcnnShapes = calculate_Rcnn_mask(img, confidence_threshold)
     img_mask_rcnn, rcnnShapes = calculate_Rcnn_mask(img, confidence_threshold)
     img_mask_densepose, denseshapes = densePose(img, confidence_threshold)
-    ##dense_ordered = order_denseposes(denseshapes)
 
     
     print(len(rcnnShapes))
@@ -213,8 +174,7 @@ if __name__ == '__main__':
     
 
     ## Encapsulamos parametros: images, siluetas individuales, siluetas global, opción inpaint 
-    ##masks = human_instances.pred_masks.cpu().numpy()
-    params = (img, union_masks, all_masks, inpaint_option, recursive) ##, masks)##, coordinates)
+    params = (img, union_masks, all_masks, inpaint_option, recursive)
 
     ## Llamamos al evento al dar click
     cv2.setMouseCallback('Shapes', mousePoints, params)
