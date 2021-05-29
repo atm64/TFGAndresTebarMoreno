@@ -15,16 +15,13 @@ from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog, DatasetCatalog
 
 
-def setup_cfg(confidence_threshold):##(args):
-    # load config from file and command-line arguments
+def setup_cfg(confidence_threshold):
+    ##Indicamos el archivo encargado de la configuracion del modelo
     cfg = get_cfg()
-    # To use demo for Panoptic-DeepLab, please uncomment the following two lines.
-    # from detectron2.projects.panoptic_deeplab import add_panoptic_deeplab_config  # noqa
-    # add_panoptic_deeplab_config(cfg)
     cfg.merge_from_file("detectron2/configs/quick_schedules/mask_rcnn_R_50_FPN_inference_acc_test.yaml")
     cfg.merge_from_list([])
 
-    # Set score_threshold for builtin models
+    ##Asignamos el umbral de confianza para los modelos
     cfg.MODEL.RETINANET.SCORE_THRESH_TEST = confidence_threshold
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = confidence_threshold
     cfg.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = confidence_threshold
