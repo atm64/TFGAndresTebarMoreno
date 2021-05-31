@@ -11,7 +11,7 @@ import cv2
 
 from Mask_Rcnn import calculate_Rcnn_mask
 
-from Densepose import densePose ##, order_denseposes, calculate_mask_shapes_and_coordinates
+from Densepose import densePose
 
 from ImageInpainting import image_inpainting_simple, image_inpainting_no_people, image_inpainting_complete, delete_all_people
 
@@ -19,24 +19,6 @@ from ImageInpainting import image_inpainting_simple, image_inpainting_no_people,
 
 def get_parser():
     parser = argparse.ArgumentParser(description="TFG Andres Tebar")
-    """ parser.add_argument(
-        "--config-file",
-        ##default="configs/quick_schedules/mask_rcnn_R_50_FPN_inference_acc_test.yaml",
-        default="detectron2/configs/quick_schedules/mask_rcnn_R_50_FPN_inference_acc_test.yaml",
-        metavar="FILE",
-        help="path to config file",
-    )
-    parser.add_argument(
-        "--input",
-        nargs="+",
-        help="A list of space separated input images; "
-        "or a single glob pattern such as 'directory/*.jpg'",
-    )
-    parser.add_argument(
-        "--output",
-        help="A file or directory to save output visualizations. "
-        "If not given, will show output in an OpenCV window.",
-    ) """
     parser.add_argument(
         "--input",
         type=str,
@@ -130,9 +112,9 @@ def union_masks_instances(denseshapes, rcnnShapes):##Une siluetas teniendo en cu
     return union_masks
 
 def mask_all_instances(union_masks, img):
-    all_masks = np.zeros_like(img) ##Imagen de referencia
+    all_masks = np.zeros_like(img) ##Imagen con todas las máscaras unidas
 
-    for mask in union_masks:
+    for mask in union_masks:##Iterador para anyadir las máscaras
         shapeImg = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
         all_masks[np.where((shapeImg==[255, 255, 255]).all(axis=2))] = 255
     
@@ -143,30 +125,39 @@ if __name__ == '__main__':
     
     print('Start')
 
+    ##Porcesamos los argumentos indicados en la ejecucion del programa
     args = get_parser().parse_args()
     
-    
+    ##Declaramos la imagen para la ejecucion
     img = cv2.imread(args.input)
+
+    ##Establecemos el umbral de confianza
     confidence_threshold = args.confidence_threshold
+
+    ##Indicamos el tipo de inpainting
     inpaint_option = args.inpaint
+
+    ##Comprobamos si se realiza un borrado recursivo
     recursive = (args.recursive==1)
     
+    ##Aplicamos el modelo de deteccion de objetos Mask R-CNN
     img_mask_rcnn, rcnnShapes = calculate_Rcnn_mask(img, confidence_threshold)
+
+    ####Aplicamos el modelo de deteccion de objetos DensePose
     img_mask_densepose, denseshapes = densePose(img, confidence_threshold)
 
     
     print(len(rcnnShapes))
     print(len(denseshapes))
     
-    ##union_masks = union_masks_instances(dense_ordered, rcnnShapes)
+    ##Unimos las mascaras de los dos modelos de deteccion
     union_masks = union_masks_instances(denseshapes, rcnnShapes)
     if(len(union_masks) == 1):
         inpaint_option = 1
-
-    all_masks = mask_all_instances(union_masks, img)
+        all_masks = union_masks[0]
+    else:
+        all_masks = mask_all_instances(union_masks, img)
     
-    ##cv2.imshow('Mask-R_cnn', resize_Rcnn_Img_Show(output, rcnnShapes))
-    ##cv2.imshow('Mask-R_cnn', img_to_show)
     if(args.detection_mask == 1):
         cv2.imshow('Shapes', img_mask_densepose)
     else:
@@ -176,7 +167,7 @@ if __name__ == '__main__':
     ## Encapsulamos parametros: images, siluetas individuales, siluetas global, opción inpaint 
     params = (img, union_masks, all_masks, inpaint_option, recursive)
 
-    ## Llamamos al evento al dar click
+    ##Disparamos el evento al dar click sobre la imagen
     cv2.setMouseCallback('Shapes', mousePoints, params)
 
     k = cv2.waitKey(0)

@@ -1,7 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-##import argparse
 from glob import glob
-##import logging
 import os
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
@@ -10,20 +8,16 @@ import sys
 import torch
 import numpy as np
 import cv2
-##import tqdm
 
 sys.path.insert(0,'./detectron2/projects/DensePose')
 
 from detectron2.config import get_cfg
 from detectron2.engine.defaults import DefaultPredictor
 
-##from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog, DatasetCatalog
 
 from densepose import add_densepose_config
-# from densepose.data.structures import DensePoseResult
 from densepose.structures import quantize_densepose_chart_result
-#from densepose.vis.densepose import DensePoseResultsVisualizer
 from densepose.vis.densepose_results import DensePoseResultsVisualizer
 from densepose.vis.extractor import CompoundExtractor, create_extractor
 
@@ -45,7 +39,6 @@ model_file = './models/model_final_b1e525.pkl'
 
 def whitenShape(imgShape): ##Blanquea la silueta
     return np.uint8(imgShape > 0) * 255
-    ##return cv2.cvtColor(np.uint8(imgShape > 0) * 255, cv2.COLOR_BGR2GRAY)
 
 def apply_mask_to_img(mask, img): ##Aplica la mascara con un factor de transparencia del 0.5 en las dos imagenes
     return cv2.addWeighted(img, 0.5, mask, 0.5, 0.0)
@@ -74,21 +67,34 @@ def order_denseposes(denseshapes):
 def densePose(img, confidence_threshold):
 
 
+    ##Generamos la configuración del detector
     cfg = setup_config(cfg_file, model_file, confidence_threshold)
+
+    ##Creamos el detector
     predictor = DefaultPredictor(cfg)
 
     with torch.no_grad():
         
 
+        ##Declaramos el visualizador DensePose
         visualizer = DensePoseResultsVisualizer()
+
+        ##Generamos el extractor mediante el visualizador
         extractor = create_extractor(visualizer)
 
+        ##Almacenamos los resultados del detector
         outputs = predictor(img)
 
+        ##Extraemos las instancias
         instances = outputs['instances']
+
+        ##Almacenamos las puntuaciones
         scores = instances._fields['scores']
+
+        ##Aplicamos el extractor de DensePose a las instancias
         data = extractor(instances)
 
+        ##Generamos unos resultados con la puntuación, los resultados DensePose y las bounding boxes
         uv_results, bboxes = data
         results = [(scores[s], uv_results[s], bboxes[s]) for s in range(len(scores))]
         results = sorted(results, key=lambda r: r[0])
@@ -107,10 +113,10 @@ def densePose(img, confidence_threshold):
                     iuv_img_single[y:y+h,x:x+w,c] = iuv_arr[c, :, :]
                 
                 
-                whiteshape = whitenShape(iuv_img_single)
-                colorMask = color_shapes_and_rectangle(colorMask, whiteshape, [x,y,x+w,y+h])
+                whiteshape = whitenShape(iuv_img_single) ##Blanqueamos la máscara
+                colorMask = color_shapes_and_rectangle(colorMask, whiteshape, [x,y,x+w,y+h])##Anyadimos la máscara con un color aleatorio a la máscara general
 
-                shapes.append(whiteshape)
+                shapes.append(whiteshape)##Almacenamos la máscara en la lista de máscaras individuales
 
         
         return apply_mask_to_img(colorMask, img), order_denseposes(shapes)
