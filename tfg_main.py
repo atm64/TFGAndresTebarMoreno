@@ -15,7 +15,7 @@ from Mask_Rcnn import calculate_Rcnn_mask
 
 from Densepose import densePose
 
-from ImageInpainting import image_inpainting_simple, image_inpainting_no_people, image_inpainting_complete, delete_all_people
+from ImageInpainting import image_inpainting_simple, image_inpainting_no_people, image_inpainting_complete, image_inpainitng_restore_others, delete_all_people
 
 
 
@@ -70,21 +70,21 @@ def mousePoints(event, x, y, flags, params):
         inpaint = params[3]
         recursive = params[4]
 
-        for shapeI in shapes:
-            shapeImg = cv2.cvtColor(shapeI, cv2.COLOR_BGR2RGB) ##Imagen de referencia
-            
-            b, g, r = shapeImg[y,x]
-            if b == 255 and g == 255 and r == 255:
+        for shapeImg in shapes:
+            b, g, r = shapeImg[y,x] ##Extrae los colores del la mascara en el punto clicado
+            if b == 255 and g == 255 and r == 255: ##Comprueba que es blanco
 
                 print('Realizando inpaintinng...')
                 if inpaint==1:
                     shape_inpainted = image_inpainting_simple(img, shapeImg)
                 elif inpaint==2:    
                     shape_inpainted = image_inpainting_no_people(img, shapeImg, all_masks)
-                elif inpaint==3:    
+                elif inpaint==3:
+                    shape_inpainted = image_inpainting_complete(img, shapeImg, all_masks)
+                elif inpaint==4:
                     shape_inpainted = delete_all_people(img, all_masks)
                 else:
-                    shape_inpainted = image_inpainting_complete(img, shapeImg, all_masks)
+                    shape_inpainted = image_inpainitng_restore_others(img, shapeImg, all_masks, shapes)
 
                 print('Inpaintinng realizado')
 
@@ -92,7 +92,7 @@ def mousePoints(event, x, y, flags, params):
                     img[:] = shape_inpainted
                 
                 cv2.imshow('Image Inpainting', shape_inpainted)
-                cv2.imwrite('./results/Jordan_Inpaint.jpg', shape_inpainted)
+                ##cv2.imwrite('./results/Jordan_Inpaint.jpg', shape_inpainted)
 
 def union_masks_instances(denseshapes, rcnnShapes):##Une siluetas teniendo en cuenta el minimo numero de pixeles en blanco
 
@@ -110,7 +110,7 @@ def union_masks_instances(denseshapes, rcnnShapes):##Une siluetas teniendo en cu
                 best_match = j
 
         ##union_masks.append(cv2.add(im1, im2))
-        union_masks.append(np.maximum(im1, im2))
+        union_masks.append(cv2.cvtColor(np.maximum(im1, im2), cv2.COLOR_BGR2RGB))
         ##rcnnShapes.pop(best_match)##Eliminamos para evitar que las sliuetas pequeñas se junten con las grandes
         ##denseshapes.pop(i)
         ##denseshapes.remove(im1)
@@ -121,8 +121,9 @@ def mask_all_instances(union_masks, img):
     all_masks = np.zeros_like(img) ##Imagen con todas las máscaras unidas
 
     for mask in union_masks:##Iterador para anyadir las máscaras
-        shapeImg = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
-        all_masks[np.where((shapeImg==[255, 255, 255]).all(axis=2))] = 255
+        ##shapeImg = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+        ##all_masks[np.where((shapeImg==[255, 255, 255]).all(axis=2))] = 255
+        all_masks[np.where((mask==[255, 255, 255]).all(axis=2))] = 255
     
     return all_masks
 
@@ -157,6 +158,8 @@ if __name__ == '__main__':
     
     ##Unimos las mascaras de los dos modelos de deteccion
     union_masks = union_masks_instances(denseshapes, rcnnShapes)
+    
+    ##Generamos las mascara con todas las instancias
     if(len(union_masks) == 1):
         inpaint_option = 1
         all_masks = union_masks[0]
@@ -168,7 +171,7 @@ if __name__ == '__main__':
     else:
         cv2.imshow('Shapes', img_mask_rcnn)
     
-    cv2.imshow('R-CNN 1', rcnnShapes[0])
+    """ cv2.imshow('R-CNN 1', rcnnShapes[0])
     cv2.imwrite('./results/Jordan_R-CNN1.jpg', rcnnShapes[0])
     cv2.imshow('Mask R-CNN', img_mask_rcnn)
     cv2.imwrite('./results/Jordan_MaskR-CNN.jpg', img_mask_rcnn)
@@ -177,7 +180,7 @@ if __name__ == '__main__':
     cv2.imshow('Mask DensePose', img_mask_densepose)
     cv2.imwrite('./results/Jordan_MaskDensePose.jpg', img_mask_densepose)
     cv2.imshow('Union 1', union_masks[0])
-    cv2.imwrite('./results/Jordan_Union1.jpg', union_masks[0])
+    cv2.imwrite('./results/Jordan_Union1.jpg', union_masks[0]) """
 
 
     ## Encapsulamos parametros: images, siluetas individuales, siluetas global, opción inpaint 

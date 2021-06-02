@@ -21,6 +21,12 @@ from densepose.structures import quantize_densepose_chart_result
 from densepose.vis.densepose_results import DensePoseResultsVisualizer
 from densepose.vis.extractor import CompoundExtractor, create_extractor
 
+
+cfg_file = './models/densepose_rcnn_R_50_FPN_DL_WC1_s1x.yaml'
+model_file = './models/model_final_b1e525.pkl'
+
+
+
 def setup_config(config_fpath: str, model_fpath: str, confidence_threshold):
     cfg = get_cfg()
     add_densepose_config(cfg)
@@ -33,10 +39,6 @@ def setup_config(config_fpath: str, model_fpath: str, confidence_threshold):
     cfg.freeze()
     return cfg
 
-cfg_file = './models/densepose_rcnn_R_50_FPN_DL_WC1_s1x.yaml'
-model_file = './models/model_final_b1e525.pkl'
-
-
 def whitenShape(imgShape): ##Blanquea la silueta
     return np.uint8(imgShape > 0) * 255
 
@@ -46,11 +48,12 @@ def apply_mask_to_img(mask, img): ##Aplica la mascara con un factor de transpare
 ##def color_shape_and_rectangle(imgshapes, shape, nShape, coord):
 def color_shapes_and_rectangle(imgshapes, shape, coord):
     color = list(np.random.random(size=3) * 256) ##Genera un color aleatorio
+    colourshape=shape.copy()
     
     cv2.rectangle(imgshapes, (coord[0],coord[1]), (coord[2],coord[3]), color, 2) ##Dibuja un rectángulo alrededor de cada figura
 
-    shape[np.where((shape==[255, 255, 255]).all(axis=2))] = color ## Colorea la silueta con el color generado
-    imgshapes = cv2.addWeighted(imgshapes, 1, shape, 1, 0.0) ##Anyade la silueta coloreada a la imagen resultante
+    colourshape[np.where((shape==[255, 255, 255]).all(axis=2))] = color ## Colorea la silueta con el color generado
+    imgshapes = cv2.addWeighted(imgshapes, 1, colourshape, 1, 0.0) ##Anyade la silueta coloreada a la imagen resultante
     
     return imgshapes
 
@@ -114,9 +117,8 @@ def densePose(img, confidence_threshold):
                 
                 
                 whiteshape = whitenShape(iuv_img_single) ##Blanqueamos la máscara
-                colorMask = color_shapes_and_rectangle(colorMask, whiteshape, [x,y,x+w,y+h])##Anyadimos la máscara con un color aleatorio a la máscara general
-
                 shapes.append(whiteshape)##Almacenamos la máscara en la lista de máscaras individuales
+                colorMask = color_shapes_and_rectangle(colorMask, whiteshape, [x,y,x+w,y+h])##Anyadimos la máscara con un color aleatorio a la máscara general
 
         
         return apply_mask_to_img(colorMask, img), order_denseposes(shapes)

@@ -1,13 +1,13 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
+
 ##import argparse
-##import glob
+import glob
 import multiprocessing as mp
-##import os
+import os
 ##import time
 import cv2
 ##import tqdm
 import numpy as np
-
 from detectron2.config import get_cfg
 from detectron2.engine.defaults import DefaultPredictor
 
@@ -18,13 +18,12 @@ from detectron2.data import MetadataCatalog, DatasetCatalog
 def setup_cfg(confidence_threshold):##(args):
     # load config from file and command-line arguments
     cfg = get_cfg()
-    # To use demo for Panoptic-DeepLab, please uncomment the following two lines.
-    # from detectron2.projects.panoptic_deeplab import add_panoptic_deeplab_config  # noqa
-    # add_panoptic_deeplab_config(cfg)
+    
+    ##Establecemos la congiuracion del modelo a utilizar
     cfg.merge_from_file("detectron2/configs/quick_schedules/mask_rcnn_R_50_FPN_inference_acc_test.yaml")
     cfg.merge_from_list([])
 
-    # Set score_threshold for builtin models
+    # Asignamos el umbral de confianza
     cfg.MODEL.RETINANET.SCORE_THRESH_TEST = confidence_threshold
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = confidence_threshold
     cfg.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = confidence_threshold

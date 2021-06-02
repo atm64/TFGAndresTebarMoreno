@@ -8,6 +8,9 @@ tf.disable_v2_behavior()
 ##import glob 
 ##import argparse
 import os
+##os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 
 
 INPUT_SIZE = 512  # input image size for Generator
@@ -113,61 +116,10 @@ def inpaint(raw_img,
 
     return res_raw_size
 
-
-
-""" def read_imgs_masks(args):
-    paths_img = glob.glob(args.images+'/*.*[gG]')
-    paths_mask = glob.glob(args.masks+'/*.*[gG]')
-    paths_img = sort(paths_img)
-    paths_mask = sort(paths_mask)
-    print('#imgs: ' + str(len(paths_img)))
-    print('#imgs: ' + str(len(paths_mask)))
-    print(paths_img)
-    print(paths_mask)
-    return paths_img, paths_mask
-
-parser = argparse.ArgumentParser()
-args = parser.parse_args()
-args.images = '../samples/testset' # input image directory
-args.masks = '../samples/maskset' # input mask director
-args.output_dir = './results' # output directory
-args.multiple = 6 # multiples of image resizing 
-
-paths_img, paths_mask = read_imgs_masks(args)
-if not os.path.exists(args.output_dir):
-    os.makedirs(args.output_dir)
-with tf.Graph().as_default():
-  with open('./pb/hifill.pb', "rb") as f:
-    output_graph_def = tf.GraphDef()
-    output_graph_def.ParseFromString(f.read())
-    tf.import_graph_def(output_graph_def, name="")
-
-  with tf.Session() as sess:
-    init = tf.global_variables_initializer()
-    sess.run(init)
-    image_ph = sess.graph.get_tensor_by_name('img:0')
-    mask_ph = sess.graph.get_tensor_by_name('mask:0')
-    inpainted_512_node = sess.graph.get_tensor_by_name('inpainted:0')
-    attention_node = sess.graph.get_tensor_by_name('attention:0')
-    mask_512_node = sess.graph.get_tensor_by_name('mask_processed:0')
-
-    ##for path_img, path_mask in zip(paths_img, paths_mask):
-        ##raw_img = cv2.imread(path_img)
-        ##raw_mask = cv2.imread(path_mask)
-        ##inpainted = inpaint(raw_img, raw_mask, sess, inpainted_512_node, attention_node, mask_512_node, image_ph, mask_ph, args.multiple)
-        ##filename = args.output_dir + '/' + os.path.basename(path_img)
-        ##cv2.imwrite(filename + '_inpainted.jpg', inpainted)
-
-    filename = str(21)
-    raw_img = cv2.imread('../samples/testset/'+filename+'.jpg')
-    raw_mask = cv2.imread('../samples/maskset/'+filename+'.jpg')
-    inpainted = inpaint(raw_img, raw_mask, sess, inpainted_512_node, attention_node, mask_512_node, image_ph, mask_ph, args.multiple)
-    cv2.imwrite('./results/'+ filename + '_inpainted.jpg', inpainted) """
-
-
 def image_inpainting(img, mask):
     if not os.path.exists('./results'):
         os.makedirs('./results')
+    
     with tf.Graph().as_default():
         with open('./pb/hifill.pb', "rb") as f:
             output_graph_def = tf.GraphDef()
@@ -184,8 +136,8 @@ def image_inpainting(img, mask):
             mask_512_node = sess.graph.get_tensor_by_name('mask_processed:0')
 
             filename = 'result'
-            raw_img = img ##cv2.imread('../samples/testset/'+filename+'.jpg')
-            raw_mask = mask ##cv2.imread('../samples/maskset/'+filename+'.jpg')
+            raw_img = img
+            raw_mask = mask
             inpainted = inpaint(raw_img, raw_mask, sess, inpainted_512_node, attention_node, mask_512_node, image_ph, mask_ph, 6)
             cv2.imwrite('./results/'+ filename + '_inpainted.jpg', inpainted)
     
@@ -219,6 +171,19 @@ def image_inpainting_no_people(img, shapeImg, all_masks):
     shape_inpainted[np.where((shapeImg==[255, 255, 255]).all(axis=2))] = image_no_people[np.where((shapeImg==[255, 255, 255]).all(axis=2))]
     
     return shape_inpainted
+
+def image_inpainitng_restore_others(img, mask_to_delete, all_masks, individual_masks):
+    
+    image_no_people = delete_all_people(img, all_masks) ##Elimina a todas las personas
+    
+    for mask_to_restore in individual_masks: ##Recorre las mascaras
+        diff = cv2.subtract(mask_to_restore, mask_to_delete) ##Extrae las diferencia
+        b, g, r = cv2.split(diff) ##Divide en colores
+        if cv2.countNonZero(b) != 0 or cv2.countNonZero(g) != 0 or cv2.countNonZero(r) != 0: ##Comprueba que coinciden todos
+            image_no_people[np.where((mask_to_restore==[255, 255, 255]).all(axis=2))] = img[np.where((mask_to_restore==[255, 255, 255]).all(axis=2))]
+
+    return image_no_people
+
     
 
 def image_inpainting_complete(img, shapeImg, all_masks):
