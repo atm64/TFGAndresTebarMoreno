@@ -1,12 +1,7 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-
-##import argparse
 import glob
 import multiprocessing as mp
 import os
-##import time
 import cv2
-##import tqdm
 import numpy as np
 from detectron2.config import get_cfg
 from detectron2.engine.defaults import DefaultPredictor
