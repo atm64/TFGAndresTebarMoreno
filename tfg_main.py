@@ -44,7 +44,7 @@ def get_parser():
         "--inpaint",
         type=int,
         default=0,
-        help="Tipo de inpainting a realizar (0: Completa, 1: Simple, 2: Sin personas)",
+        help="Tipo de inpainting a realizar (0: Restaura resto de personas, 1: Simple, 2: Sin personas)",
     )
     parser.add_argument(
         "--recursive",
@@ -92,22 +92,21 @@ def mousePoints(event, x, y, flags, params):
                     img[:] = shape_inpainted
                 
                 cv2.imshow('Image Inpainting', shape_inpainted)
-                ##cv2.imwrite('./results/Jordan_Inpaint.jpg', shape_inpainted)
+                ##cv2.imwrite('./results/pueblo/Pueblo_No people_Inpaint.jpg', shape_inpainted)
 
 def union_masks_instances(denseshapes, rcnnShapes):##Une siluetas teniendo en cuenta el minimo numero de pixeles en blanco
-
-##HAY QUE ARREGLAR EL PROBLEMA DE evitar que las sliuetas pequeñas se junten con las grandes, PARA ELLO ELIMINAR DEL ARRAY
+##Puede haber problema si la diferencia ente las siluetas de las dos detecciones es mayor a alguna persona que ocupe pocos píxeles en la imagen
     union_masks = []
     for i in range(0, len(denseshapes)):
         im1 = cv2.cvtColor(denseshapes[i], cv2.COLOR_BGR2GRAY)
         im2 = cv2.cvtColor(rcnnShapes[i], cv2.COLOR_BGR2GRAY)
-        best_match = i
+        #best_match = i
         min_union = cv2.countNonZero(np.maximum(im1, im2))
         for j in range(0, len(rcnnShapes)):
             if(cv2.countNonZero(np.maximum(im1, cv2.cvtColor(rcnnShapes[j], cv2.COLOR_BGR2GRAY))) < min_union):
                 min_union = cv2.countNonZero(np.maximum(im1, cv2.cvtColor(rcnnShapes[j], cv2.COLOR_BGR2GRAY)))
                 im2 = cv2.cvtColor(rcnnShapes[j], cv2.COLOR_BGR2GRAY)
-                best_match = j
+                #best_match = j
 
         ##union_masks.append(cv2.add(im1, im2))
         union_masks.append(cv2.cvtColor(np.maximum(im1, im2), cv2.COLOR_BGR2RGB))
@@ -132,7 +131,7 @@ if __name__ == '__main__':
     
     print('Start')
 
-    ##Porcesamos los argumentos indicados en la ejecucion del programa
+    ##Procesamos los argumentos indicados en la ejecucion del programa
     args = get_parser().parse_args()
     
     ##Declaramos la imagen para la ejecucion
@@ -152,12 +151,18 @@ if __name__ == '__main__':
 
     ##Aplicamos el modelo de deteccion de objetos DensePose
     img_mask_densepose, denseshapes = densePose(img, confidence_threshold)
+
     
     ##print(len(rcnnShapes))
     ##print(len(denseshapes))
+    ##cv2.imshow('RCNN', cv2.add(img, rcnnShapes[0]))
+    ##cv2.imshow('DensePose', cv2.add(img, denseshapes[0]))
     
-    ##Unimos las mascaras de los dos modelos de deteccion
+    
+    ##Unimos las máscaras de los dos modelos de deteccion
     union_masks = union_masks_instances(denseshapes, rcnnShapes)
+
+    ##cv2.imshow('Union Mask', cv2.add(img, union_masks[0]))
     
     ##Generamos las mascara con todas las instancias
     if(len(union_masks) == 1):
@@ -165,29 +170,20 @@ if __name__ == '__main__':
         all_masks = union_masks[0]
     else:
         all_masks = mask_all_instances(union_masks, img)
+
+    #cv2.imshow('Union Masks', all_masks)
     
     if(args.detection_mask == 1):
-        cv2.imshow('Shapes', img_mask_densepose)
+        cv2.imshow('Selector', img_mask_densepose)
     else:
-        cv2.imshow('Shapes', img_mask_rcnn)
+        cv2.imshow('Selector', img_mask_rcnn)
     
-    """ cv2.imshow('R-CNN 1', rcnnShapes[0])
-    cv2.imwrite('./results/Jordan_R-CNN1.jpg', rcnnShapes[0])
-    cv2.imshow('Mask R-CNN', img_mask_rcnn)
-    cv2.imwrite('./results/Jordan_MaskR-CNN.jpg', img_mask_rcnn)
-    cv2.imshow('DensePose 1', denseshapes[0])
-    cv2.imwrite('./results/Jordan_DensePose1.jpg', denseshapes[0])
-    cv2.imshow('Mask DensePose', img_mask_densepose)
-    cv2.imwrite('./results/Jordan_MaskDensePose.jpg', img_mask_densepose)
-    cv2.imshow('Union 1', union_masks[0])
-    cv2.imwrite('./results/Jordan_Union1.jpg', union_masks[0]) """
-
 
     ## Encapsulamos parametros: images, siluetas individuales, siluetas global, opción inpaint 
     params = (img, union_masks, all_masks, inpaint_option, recursive)
 
     ##Disparamos el evento al dar click sobre la imagen
-    cv2.setMouseCallback('Shapes', mousePoints, params)
+    cv2.setMouseCallback('Selector', mousePoints, params)
 
     k = cv2.waitKey(0)
     if k == ord('q'):
